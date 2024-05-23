@@ -37,7 +37,7 @@ Para iniciar um nó, abra um terminal e use o seguinte comando:
 python main.py <porta> [arquivo_de_vizinhos] [arquivo_de_pares_chave_valor]
 ```
 ## Exemplo
-python main.py 5001 neighbors.txt keys.txt
+python main.py 127.0.0.1:5001 neighbors1.txt key_value1.txt
 
 Repita isso em diferentes terminais para cada nó que deseja executar, alterando a porta e os arquivos conforme necessário.
 
