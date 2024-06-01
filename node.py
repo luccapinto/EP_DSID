@@ -169,6 +169,7 @@ class Node:
             if choice in commands:
                 commands[choice]()  # Executa o comando escolhido
             if choice == 9:
+                sys.exit(1)
                 break
 
     def list_neighbors(self):
@@ -242,6 +243,7 @@ class Node:
         self.running = False  # Define a flag como False para parar o loop de aceitação de conexões
         self.server_socket.close()  # Fecha o socket do servidor
         sys.exit(0)  # Termina a execução do programa
+        
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
