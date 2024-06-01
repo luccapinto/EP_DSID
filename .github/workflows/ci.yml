@@ -2,9 +2,9 @@ name: Test Nodes
 
 on:
   push:
-    branches: [ main ]
+    branches: [ Quase_Pronta_Reparos ]
   pull_request:
-    branches: [ main ]
+    branches: [ Quase_Pronta_Reparos ]
 
 jobs:
   setup-python:
