@@ -55,7 +55,8 @@ class Node:
     def start(self):
         print(f"Node started at {self.ip}:{self.port}")
         threading.Thread(target=self.accept_connections).start()
-        self.menu()
+        command_file = sys.argv[4] if len(sys.argv) > 4 else None
+        self.menu(command_file)
 
     def accept_connections(self):
         while self.running:
@@ -71,7 +72,6 @@ class Node:
                 if self.running:
                     logging.error(f"Socket error: {e}")
                 break
-
 
     def handle_client(self, client_socket):
         with client_socket:
@@ -116,9 +116,6 @@ class Node:
                 client_socket.sendall(response.encode())
             else:
                 return
-
-
-
 
     def handle_search(self, origin, seqno, ttl, mode, last_hop_port, key, hop_count, client_socket):
         message_id = (origin, seqno)
@@ -279,13 +276,14 @@ class Node:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4:
+    if len(sys.argv) < 4:
         print("Usage: python node.py <ip:port> <neighbors_file> <key_value_file> <command_file>")
         sys.exit(1)
 
     ip, port = sys.argv[1].split(':')
     neighbors_file = sys.argv[2]
     key_value_file = sys.argv[3]
+    command_file = sys.argv[4] if len(sys.argv) > 4 else None
 
     node = Node(ip, int(port), neighbors_file, key_value_file)
     node.start()
