@@ -44,7 +44,7 @@ jobs:
 
     - name: Run Node 1
       run: |
-        cat commands.txt | python node.py 127.0.0.1:5001 topologia_arvore_binaria/1.txt key_values/key_value1.txt
+        python node.py 127.0.0.1:5001 topologia_arvore_binaria/1.txt key_values/key_value1.txt commands.txt
         echo "Node 1 started"
         
   run-node-2:
@@ -62,7 +62,7 @@ jobs:
         
     - name: Run Node 2
       run: |
-        python node.py 127.0.0.1:5002 topologia_arvore_binaria/2.txt key_values/key_value2.txt
+        python node.py 127.0.0.1:5002 topologia_arvore_binaria/2.txt key_values/key_value2.txt commands.txt
         echo "Node 2 started"
         
   run-node-3:
@@ -80,5 +80,5 @@ jobs:
         
     - name: Run Node 3
       run: |
-        python node.py 127.0.0.1:5003 topologia_arvore_binaria/3.txt key_values/key_value3.txt
+        python node.py 127.0.0.1:5003 topologia_arvore_binaria/3.txt key_values/key_value3.txt commands.txt
         echo "Node 3 started"
