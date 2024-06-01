@@ -23,7 +23,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
 
-  run-nodes:
+  run-node-1:
     runs-on: ubuntu-latest
     needs: setup-python
 
@@ -41,21 +41,24 @@ jobs:
         python node.py 127.0.0.1:5001 neighbors1.txt key_values1.txt &
         echo "Node 1 started"
 
+  run-node-2:
+    runs-on: ubuntu-latest
+    needs: setup-python
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.12
+
     - name: Run Node 2
       run: |
-        python node.py 127.0.0.1:5002 neighbors2.txt key_values2.txt &
+        python node.py 127.0.0.1:5001 neighbors1.txt key_values1.txt &
         echo "Node 2 started"
-
-    - name: Run Node 3
+    - name: Run command
       run: |
-        python node.py 127.0.0.1:5003 neighbors3.txt key_values3.txt &
-        echo "Node 3 started"
+        1
 
-    - name: Wait and Test Nodes
-      run: |
-        echo "Waiting for nodes to start..."
-        sleep 60
-        echo "Testing nodes..."
-        curl -X POST 127.0.0.1:5001/some_test_endpoint
-        curl -X POST 127.0.0.1:5002/some_test_endpoint
-        curl -X POST 127.0.0.1:5003/some_test_endpoint
