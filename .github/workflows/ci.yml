@@ -22,9 +22,8 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
 
-  run-nodes:
+  run-node-1:
     runs-on: ubuntu-latest
     needs: setup-python
 
@@ -36,32 +35,15 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: 3.12
-
-    - name: Install dependencies
+        
+    - name: Create command file
       run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        echo "1" > commands.txt
+        echo "0" >> commands.txt
+        echo "9" >> commands.txt
 
     - name: Run Node 1
       run: |
-        python node.py 127.0.0.1:5001 neighbors1.txt key_values1.txt &
+        cat commands.txt | python node.py 127.0.0.1:5001 topologia_arvore_binaria/1.txt key_values/key_value1.txt
         echo "Node 1 started"
 
-    - name: Run Node 2
-      run: |
-        python node.py 127.0.0.1:5002 neighbors2.txt key_values2.txt &
-        echo "Node 2 started"
-
-    - name: Run Node 3
-      run: |
-        python node.py 127.0.0.1:5003 neighbors3.txt key_values3.txt &
-        echo "Node 3 started"
-
-    - name: Wait and Test Nodes
-      run: |
-        echo "Waiting for nodes to start..."
-        sleep 60
-        echo "Testing nodes..."
-        curl -X POST 127.0.0.1:5001/some_test_endpoint
-        curl -X POST 127.0.0.1:5002/some_test_endpoint
-        curl -X POST 127.0.0.1:5003/some_test_endpoint
