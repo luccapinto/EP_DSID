@@ -54,9 +54,14 @@ class Node:
         self.menu()  # Exibe o menu de comandos
 
     def accept_connections(self):
-        while True:
-            client_socket, client_ip = self.server_socket.accept()  # Aceita uma nova conexão
-            threading.Thread(target=self.handle_client, args=(client_socket,)).start()  # Inicia uma thread para lidar com o cliente
+        while self.running:
+            try:
+                client_socket, client_ip = self.server_socket.accept()  # Aceita uma nova conexão
+                threading.Thread(target=self.handle_client, args=(client_socket,)).start()  # Inicia uma thread para lidar com o cliente
+            except socket.error as e:
+                if self.running:
+                    logging.error(f"Socket error: {e}")
+                break
 
     def handle_client(self, client_socket):
         with client_socket:
@@ -234,7 +239,8 @@ class Node:
                 except socket.error as e:
                     print(f"Error sending BYE to {neighbor_ip}:{neighbor_port}: {e}")
         print("Exiting program...")
-        self.server_socket.close()
+        self.running = False  # Define a flag como False para parar o loop de aceitação de conexões
+        self.server_socket.close()  # Fecha o socket do servidor
         sys.exit(0)  # Termina a execução do programa
 
 if __name__ == "__main__":
