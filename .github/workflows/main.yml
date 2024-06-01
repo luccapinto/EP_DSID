@@ -35,12 +35,15 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: 3.12
+        
+    - name: Create command file
+      run: |
+        echo "1" > commands.txt
+        echo "0" >> commands.txt
+        echo "9" >> commands.txt
 
     - name: Run Node 1
       run: |
-        python node.py 127.0.0.1:5001 topologia_arvore_binaria/1.txt key_values/key_value1.txt
+        cat commands.txt | python node.py 127.0.0.1:5001 topologia_arvore_binaria/1.txt key_values/key_value1.txt
         echo "Node 1 started"
-
-    - name: Command Test
-      run: "0"
 
