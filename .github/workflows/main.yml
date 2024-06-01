@@ -38,7 +38,7 @@ jobs:
 
     - name: Run Node 1
       run: |
-        python node.py 127.0.0.1:5001 topologia_arvore_binaria/1.txt key_values/keey_value1.txt
+        python node.py 127.0.0.1:5001 topologia_arvore_binaria/1.txt key_values/key_value1.txt
         echo "Node 1 started"
 
     - name: Command Test
