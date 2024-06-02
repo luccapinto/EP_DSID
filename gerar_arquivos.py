@@ -13,6 +13,6 @@ key_values = {
 
 # Writing the key-value pairs to files
 for filename, pairs in key_values.items():
-    with open(f"/Users/tripa/Documents/GitHub/EP_DSID/{filename}", 'w') as f:
+    with open(f"C:/Users/palaz/EP_DSID/lucca_values/{filename}", 'w') as f:
         for key, value in pairs:
             f.write(f"{key} {value}\n")
