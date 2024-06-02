@@ -17,11 +17,12 @@ class Node:
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.bind((self.ip, self.port))
         self.server_socket.listen(5)
-        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)  # Mantém a conexão ativa
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         self.running = True
         self.ttl_default = 100
         self.message_seen = set()
         self.lock = threading.Lock()
+        self.connections = {}  # Dicionário para manter as conexões abertas
         print(f"Node running at {self.ip}:{self.port}")
         self.stats = {
             "flooding": 0,
@@ -63,7 +64,7 @@ class Node:
 
     def handle_client(self, client_socket):
         with client_socket:
-            client_socket.settimeout(None)  # Remove timeout para conexões recebidas
+            client_socket.settimeout(None)
             try:
                 while True:
                     message = client_socket.recv(1024).decode()
@@ -105,11 +106,37 @@ class Node:
                     client_socket.sendall(response.encode())
                 except socket.error as e:
                     logging.error(f"Socket error: {e}")
-            else:
-                #print(f"Neighbor already in table: {origin}")
+            node.menu()
+
+    def send_message(self, neighbor_ip, neighbor_port, message):
+        neighbor_addr = f"{neighbor_ip}:{neighbor_port}"
+        if neighbor_addr in self.connections:
+            neighbor_socket = self.connections[neighbor_addr]
+        else:
+            try:
+                neighbor_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                neighbor_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                neighbor_socket.settimeout(5)
+                neighbor_socket.connect((neighbor_ip, int(neighbor_port)))
+                self.connections[neighbor_addr] = neighbor_socket
+            except socket.error as e:
+                print(f"Error connecting to {neighbor_ip}:{neighbor_port}: {e}")
+                logging.error(f"Socket error: {e}")
                 return
-            
-    def handle_search(self, origin, seqno, ttl, mode, last_hop_port, key, hop_count, client_socket):
+            except Exception as e:
+                logging.error(f"Unexpected error: {e}")
+                return
+
+        try:
+            neighbor_socket.sendall(message.encode())
+        except socket.error as e:
+            logging.error(f"Socket error: {e}")
+            self.connections.pop(neighbor_addr, None)  # Remove socket ruim do pool
+            neighbor_socket.close()
+        except Exception as e:
+            logging.error(f"Unexpected error: {e}")
+
+    def handle_search(self, origin, seqno, ttl, mode, last_hop_port, key, hop_count, client_socket=None):
         message_id = (origin, seqno)
         if message_id in self.message_seen:
             print("Message already seen, discarding")
@@ -119,8 +146,18 @@ class Node:
         if key in self.key_value_store:
             value = self.key_value_store[key]
             response = f"{self.ip}:{self.port} {seqno} {ttl} VAL {mode} {key} {value} {hop_count}\n"
-            client_socket.sendall(response.encode())
+            if client_socket:
+                try:
+                    client_socket.sendall(response.encode())
+                    client_socket.close()
+                except socket.error as e:
+                    logging.error(f"Socket error: {e}")
             print(f"Key found: {key}, sending value: {value}")
+
+            # Enviar par chave-valor de volta para o nó que iniciou a busca
+            origin_ip, origin_port = origin.split(':')
+            return_message = f"{self.ip}:{self.port} {seqno} {ttl} VAL {mode} {key} {value} {hop_count}\n"
+            self.send_message(origin_ip, origin_port, return_message)
             return
 
         ttl -= 1
@@ -133,16 +170,8 @@ class Node:
         for neighbor in self.neighbors:
             neighbor_ip, neighbor_port = neighbor.split(':')
             if neighbor_port != last_hop_port:
-                try:
-                    print(f"Forwarding message to {neighbor_ip}:{neighbor_port}")
-                    neighbor_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    neighbor_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-                    neighbor_socket.settimeout(5)
-                    neighbor_socket.connect((neighbor_ip, int(neighbor_port)))
-                    neighbor_socket.sendall(new_message.encode())
-                    neighbor_socket.close()
-                except socket.error as e:
-                    print(f"Failed to forward message to {neighbor_ip}:{neighbor_port}: {e}")
+                print(f"Forwarding message to {neighbor_ip}:{neighbor_port}")
+                self.send_message(neighbor_ip, neighbor_port, new_message)
 
     def handle_val(self, mode, key, value, hop_count):
         print(f"Value received - Key: {key}, Value: {value}")
@@ -183,10 +212,7 @@ class Node:
                 print("Invalid input. Please enter a valid command number.")
 
     def list_neighbors(self):
-        with self.lock:
-            print(f"There are {len(self.neighbors)} neighbors in the table:")
-            for i, neighbor in enumerate(self.neighbors):
-                print(f"[{i}] {neighbor}")
+        print("Neighbors:", self.neighbors)
 
     def send_hello(self):
         print("Choose a neighbor:")
@@ -222,50 +248,43 @@ class Node:
             except Exception as e:
                 logging.error(f"Unexpected error: {e}")
 
-                
 
     def search_flooding(self):
-        self.search("FL")
+        key = input("Enter key to search: ")
+        self.stats["flooding"] += 1
+        message = f"{self.ip}:{self.port} {self.stats['flooding']} {self.ttl_default} SEARCH FL {self.port} {key} 0\n"
+        for neighbor in self.neighbors:
+            neighbor_ip, neighbor_port = neighbor.split(':')
+            self.send_message(neighbor_ip, neighbor_port, message)
 
     def search_random_walk(self):
-        self.search("RW")
+        key = input("Enter key to search: ")
+        self.stats["random_walk"] += 1
+        neighbor = random.choice(self.neighbors)
+        neighbor_ip, neighbor_port = neighbor.split(':')
+        message = f"{self.ip}:{self.port} {self.stats['random_walk']} {self.ttl_default} SEARCH RW {self.port} {key} 0\n"
+        self.send_message(neighbor_ip, neighbor_port, message)
 
     def search_depth_first(self):
-        self.search("BP")
-
-    def search(self, mode):
         key = input("Enter key to search: ")
-        seqno = random.randint(1, 10000)
-        message = f"{self.ip}:{self.port} {seqno} {self.ttl_default} SEARCH {mode} {self.port} {key} 1\n"
-
-        if mode == "FL":
-            self.handle_search(self.ip, seqno, self.ttl_default, "FL", self.port, key, 1, None)
-        elif mode == "RW":
-            self.handle_search(self.ip, seqno, self.ttl_default, "RW", self.port, key, 1, None)
-        elif mode == "BP":
-            self.handle_search(self.ip, seqno, self.ttl_default, "BP", self.port, key, 1, None)
+        self.stats["depth_first"] += 1
+        message = f"{self.ip}:{self.port} {self.stats['depth_first']} {self.ttl_default} SEARCH BP {self.port} {key} 0\n"
+        if self.neighbors:
+            neighbor_ip, neighbor_port = self.neighbors[0].split(':')
+            self.send_message(neighbor_ip, neighbor_port, message)
 
     def show_statistics(self):
         print("Statistics:")
-        print(f"Total flooding messages seen: {self.stats['flooding']}")
-        print(f"Total random walk messages seen: {self.stats['random_walk']}")
-        print(f"Total depth first messages seen: {self.stats['depth_first']}")
-        print(f"Avg hops for flooding: {self.stats['flooding_hops']/max(self.stats['flooding'], 1)}")
-        print(f"Avg hops for random walk: {self.stats['random_walk_hops']/max(self.stats['random_walk'], 1)}")
-        print(f"Avg hops for depth first: {self.stats['depth_first_hops']/max(self.stats['depth_first'], 1)}")
+        for stat, value in self.stats.items():
+            print(f"{stat}: {value}")
 
     def change_ttl(self):
-        while True:
-            try:
-                new_ttl = input("Enter new TTL: ")
-                if not new_ttl.strip():
-                    continue
-                new_ttl = int(new_ttl)
-                self.ttl_default = new_ttl
-                print(f"Default TTL changed to {self.ttl_default}")
-                break
-            except ValueError:
-                print("Invalid input. Please enter a valid number.")
+        try:
+            new_ttl = int(input("Enter new TTL value: "))
+            self.ttl_default = new_ttl
+            print(f"TTL value updated to {new_ttl}")
+        except ValueError:
+            print("Invalid TTL value.")
 
     def exit_program(self):
         with self.lock:
@@ -273,14 +292,14 @@ class Node:
                 neighbor_ip, neighbor_port = neighbor.split(':')
                 message = f"{self.ip}:{self.port} 0 1 BYE\n"
                 try:
-                    neighbor_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    neighbor_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-                    neighbor_socket.settimeout(5)
-                    neighbor_socket.connect((neighbor_ip, int(neighbor_port)))
-                    neighbor_socket.sendall(message.encode())
-                    neighbor_socket.close()
+                    self.send_message(neighbor_ip, neighbor_port, message)
                 except socket.error as e:
                     print(f"Error sending BYE to {neighbor_ip}:{neighbor_port}: {e}")
+                    logging.error(f"Socket error: {e}")
+
+            for neighbor_socket in self.connections.values():
+                neighbor_socket.close()
+
         print("Exiting program...")
         self.running = False
         self.server_socket.close()

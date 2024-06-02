@@ -1,2 +1,2 @@
-Bette_Davis 4
-Vivien_Leigh 3
+4 Bette_Davis
+3 Vivien_Leigh

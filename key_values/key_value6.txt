@@ -1,2 +1,2 @@
-Grace_Kelly 2
-Sophia_Loren 2
+2 Grace_Kelly
+2 Sophia_Loren

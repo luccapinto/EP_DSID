@@ -1,2 +1,2 @@
-Katharine_Hepburn 4
-Frances_McDormand 3
+4 Katharine_Hepburn
+3 Frances_McDormand
