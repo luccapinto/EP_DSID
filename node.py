@@ -78,7 +78,6 @@ class Node:
 
 
     def process_message(self, message, client_socket):
-        print(f"Processing message: {message}")
         parts = message.split()
         origin, seqno, ttl, operation = parts[:4]
         ttl = int(ttl)
@@ -166,6 +165,7 @@ class Node:
             return_message = f"{self.ip}:{self.port} {seqno} {ttl} VAL {mode} {key} {value} {hop_count}\n"
             self.send_message(origin_ip, origin_port, return_message)
             # Não feche o socket aqui
+            self.message_seen = set()
             return
 
         ttl -= 1
@@ -180,7 +180,7 @@ class Node:
             if neighbor_port != last_hop_port:
                 print(f"Forwarding message to {neighbor_ip}:{neighbor_port}")
                 self.send_message(neighbor_ip, neighbor_port, new_message)
-
+        self.message_seen = set()
 
 
 
