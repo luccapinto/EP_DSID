@@ -110,31 +110,37 @@ class Node:
 
     def send_message(self, neighbor_ip, neighbor_port, message):
         neighbor_addr = f"{neighbor_ip}:{neighbor_port}"
-        if neighbor_addr in self.connections:
-            neighbor_socket = self.connections[neighbor_addr]
-        else:
-            try:
+        try:
+            if neighbor_addr in self.connections:
+                neighbor_socket = self.connections[neighbor_addr]
+                # Check if the socket is still open and valid
+                if neighbor_socket.fileno() == -1:
+                    raise socket.error("Socket is closed or invalid")
+            else:
                 neighbor_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 neighbor_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
                 neighbor_socket.settimeout(5)
                 neighbor_socket.connect((neighbor_ip, int(neighbor_port)))
                 self.connections[neighbor_addr] = neighbor_socket
-            except socket.error as e:
-                print(f"Error connecting to {neighbor_ip}:{neighbor_port}: {e}")
-                logging.error(f"Socket error: {e}")
-                return
-            except Exception as e:
-                logging.error(f"Unexpected error: {e}")
-                return
 
-        try:
             neighbor_socket.sendall(message.encode())
         except socket.error as e:
-            logging.error(f"Socket error: {e}")
-            self.connections.pop(neighbor_addr, None)  # Remove socket ruim do pool
-            neighbor_socket.close()
+            logging.error(f"Socket error while sending to {neighbor_ip}:{neighbor_port}: {e}")
+            if neighbor_addr in self.connections:
+                del self.connections[neighbor_addr]
+            try:
+                neighbor_socket.close()
+            except:
+                pass
         except Exception as e:
-            logging.error(f"Unexpected error: {e}")
+            logging.error(f"Unexpected error while sending to {neighbor_ip}:{neighbor_port}: {e}")
+            if neighbor_addr in self.connections:
+                del self.connections[neighbor_addr]
+            try:
+                neighbor_socket.close()
+            except:
+                pass
+
 
     def handle_search(self, origin, seqno, ttl, mode, last_hop_port, key, hop_count, client_socket=None):
         message_id = (origin, seqno)
@@ -172,6 +178,12 @@ class Node:
             if neighbor_port != last_hop_port:
                 print(f"Forwarding message to {neighbor_ip}:{neighbor_port}")
                 self.send_message(neighbor_ip, neighbor_port, new_message)
+
+
+
+
+
+
 
     def handle_val(self, mode, key, value, hop_count):
         print(f"Value received - Key: {key}, Value: {value}")
