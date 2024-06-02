@@ -23,6 +23,7 @@ class Node:
         self.message_seen = set()
         self.lock = threading.Lock()
         self.connections = {}  # Dicionário para manter as conexões abertas
+        self.visited_nodes = set()
         print(f"Node running at {self.ip}:{self.port}")
         self.stats = {
             "flooding": 0,
@@ -184,13 +185,49 @@ class Node:
             return
 
         hop_count += 1
-        new_message = f"{origin} {seqno} {ttl} SEARCH {mode} {self.port} {key} {hop_count}\n"
-        for neighbor in self.neighbors:
-            neighbor_ip, neighbor_port = neighbor.split(':')
-            if neighbor_port != last_hop_port:
-                print(f"Forwarding message to {neighbor_ip}:{neighbor_port}")
+        if mode == "FL":  # Flooding
+            for neighbor in self.neighbors:
+                neighbor_ip, neighbor_port = neighbor.split(':')
+                if neighbor_port != last_hop_port:
+                    print(f"Forwarding message to {neighbor_ip}:{neighbor_port}")
+                    new_message = f"{origin} {seqno} {ttl} SEARCH {mode} {self.port} {key} {hop_count}\n"
+                    self.send_message(neighbor_ip, neighbor_port, new_message)
+        elif mode == "RW":  # Random Walk
+            if self.neighbors:
+                neighbor = random.choice(self.neighbors)
+                neighbor_ip, neighbor_port = neighbor.split(':')
+                print(f"Random Walk to {neighbor_ip}:{neighbor_port}")
+                new_message = f"{origin} {seqno} {ttl} SEARCH {mode} {last_hop_port} {key} {hop_count}\n"
                 self.send_message(neighbor_ip, neighbor_port, new_message)
+        elif mode == "BP":
+            # Apenas considera vizinhos que não são o último salto
+            candidate_neighbors = [n for n in self.neighbors if n.split(':')[1] != last_hop_port]
+            
+            # Se não houver candidatos e a busca retorna ao nó de origem, termina a busca
+            if not candidate_neighbors and self.ip == origin.split(':')[0] and self.port == int(origin.split(':')[1]):
+                print(f"BP: Não foi possível localizar a chave {key}")
+                return
+            
+            # Escolhe o próximo vizinho aleatoriamente dentre os candidatos
+            if candidate_neighbors:
+                next_neighbor = random.choice(candidate_neighbors)
+                next_ip, next_port = next_neighbor.split(':')
+            else:
+                # Se nenhum candidato disponível, retorna para o nó anterior
+                print("BP: nenhum vizinho encontrou a chave, retrocedendo...")
+                next_ip, next_port = last_hop_port.split(':')
+
+            # Enviar mensagem para o próximo vizinho
+            new_message = f"{self.ip}:{self.port} {seqno} {ttl} SEARCH BP {next_port} {key} {hop_count + 1}\n"
+            self.send_message(next_ip, next_port, new_message)
+
+        else:
+            print("Invalid search mode")
+            return
+
         self.message_seen = set()
+
+
 
 
 
@@ -226,9 +263,9 @@ class Node:
         commands = {
             0: self.list_neighbors,
             1: self.send_hello,
-            2: self.search_flooding,
-            3: self.search_random_walk,
-            4: self.search_depth_first,
+            2: self.handle_search_flooding,
+            3: self.handle_search_random_walk,
+            4: self.handle_search_depth_first,
             5: self.show_statistics,
             6: self.change_ttl,
             9: self.exit_program,
@@ -299,29 +336,37 @@ class Node:
 
 
 
-    def search_flooding(self):
-        key = input("Enter key to search: ")
-        self.stats["flooding"] += 1
-        message = f"{self.ip}:{self.port} {self.stats['flooding']} {self.ttl_default} SEARCH FL {self.port} {key} 0\n"
-        for neighbor in self.neighbors:
-            neighbor_ip, neighbor_port = neighbor.split(':')
-            self.send_message(neighbor_ip, neighbor_port, message)
+    def handle_search_flooding(self):
+        print("Choose a key:")
+        key = input()
+        origin = f"{self.ip}:{self.port}"
+        seqno = random.randint(1, 1000)
+        ttl = self.ttl_default
+        last_hop_port = self.port
+        hop_count = 0
+        self.handle_search(origin, seqno, ttl, "FL", last_hop_port, key, hop_count)
 
-    def search_random_walk(self):
-        key = input("Enter key to search: ")
-        self.stats["random_walk"] += 1
-        neighbor = random.choice(self.neighbors)
-        neighbor_ip, neighbor_port = neighbor.split(':')
-        message = f"{self.ip}:{self.port} {self.stats['random_walk']} {self.ttl_default} SEARCH RW {self.port} {key} 0\n"
-        self.send_message(neighbor_ip, neighbor_port, message)
+    def handle_search_random_walk(self):
+        print("Choose a key:")
+        key = input()
+        origin = f"{self.ip}:{self.port}"
+        seqno = random.randint(1, 1000)
+        ttl = self.ttl_default
+        last_hop_port = self.port
+        hop_count = 0
+        self.handle_search(origin, seqno, ttl, "RW", last_hop_port, key, hop_count)
 
-    def search_depth_first(self):
-        key = input("Enter key to search: ")
-        self.stats["depth_first"] += 1
-        message = f"{self.ip}:{self.port} {self.stats['depth_first']} {self.ttl_default} SEARCH BP {self.port} {key} 0\n"
-        if self.neighbors:
-            neighbor_ip, neighbor_port = self.neighbors[0].split(':')
-            self.send_message(neighbor_ip, neighbor_port, message)
+    def handle_search_depth_first(self):
+        print("Choose a key:")
+        key = input()
+        origin = f"{self.ip}:{self.port}"
+        seqno = random.randint(1, 1000)
+        ttl = self.ttl_default
+        last_hop_port = self.port
+        hop_count = 0
+        self.visited_nodes.clear()  # Limpa o conjunto de nós visitados para essa busca específica
+        self.handle_search(origin, seqno, ttl, "BP", last_hop_port, key, hop_count)
+
 
     def show_statistics(self):
         print("Statistics:")
