@@ -106,8 +106,9 @@ class Node:
                 except socket.error as e:
                     logging.error(f"Socket error: {e}")
             else:
-                print(f"Neighbor already in table: {origin}")
-
+                #print(f"Neighbor already in table: {origin}")
+                return
+            
     def handle_search(self, origin, seqno, ttl, mode, last_hop_port, key, hop_count, client_socket):
         message_id = (origin, seqno)
         if message_id in self.message_seen:
@@ -188,23 +189,40 @@ class Node:
                 print(f"[{i}] {neighbor}")
 
     def send_hello(self):
+        print("Choose a neighbor:")
+        i = 0
         with self.lock:
             for neighbor in self.neighbors:
                 neighbor_ip, neighbor_port = neighbor.split(':')
-                message = f"{self.ip}:{self.port} 0 1 HELLO\n"
-                print(f"Sending HELLO to {neighbor_ip}:{neighbor_port}")
+                print(f"[{i}] {neighbor_ip}:{neighbor_port}")
+                i += 1
+            while True:
                 try:
-                    neighbor_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    neighbor_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-                    neighbor_socket.settimeout(5)
-                    neighbor_socket.connect((neighbor_ip, int(neighbor_port)))
-                    neighbor_socket.sendall(message.encode())
-                    neighbor_socket.close()
-                except socket.error as e:
-                    print(f"Error sending HELLO to {neighbor_ip}:{neighbor_port}: {e}")
-                    logging.error(f"Socket error: {e}")
-                except Exception as e:
-                    logging.error(f"Unexpected error: {e}")
+                    number = int(input("Choose neighbor number: "))
+                    if 0 <= number < len(self.neighbors):
+                        break
+                    else:
+                        print("Invalid neighbor number. Please choose a valid number.")
+                except ValueError:
+                    print("Invalid input. Please enter a valid number.")
+            
+            neighbor_ip, neighbor_port = self.neighbors[number].split(':')
+            message = f"{self.ip}:{self.port} 0 1 HELLO\n"
+            print(f"Sending HELLO to {neighbor_ip}:{neighbor_port}")
+            try:
+                neighbor_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                neighbor_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                neighbor_socket.settimeout(5)
+                neighbor_socket.connect((neighbor_ip, int(neighbor_port)))
+                neighbor_socket.sendall(message.encode())
+                neighbor_socket.close()
+            except socket.error as e:
+                print(f"Error sending HELLO to {neighbor_ip}:{neighbor_port}: {e}")
+                logging.error(f"Socket error: {e}")
+            except Exception as e:
+                logging.error(f"Unexpected error: {e}")
+
+                
 
     def search_flooding(self):
         self.search("FL")
