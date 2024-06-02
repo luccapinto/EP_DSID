@@ -76,6 +76,7 @@ class Node:
             except Exception as e:
                 logging.error(f"Unexpected error: {e}")
 
+
     def process_message(self, message, client_socket):
         print(f"Processing message: {message}")
         parts = message.split()
@@ -106,7 +107,7 @@ class Node:
                     client_socket.sendall(response.encode())
                 except socket.error as e:
                     logging.error(f"Socket error: {e}")
-            node.menu()
+            
 
     def send_message(self, neighbor_ip, neighbor_port, message):
         neighbor_addr = f"{neighbor_ip}:{neighbor_port}"
@@ -155,7 +156,7 @@ class Node:
             if client_socket:
                 try:
                     client_socket.sendall(response.encode())
-                    client_socket.close()
+                    # Não feche o socket aqui
                 except socket.error as e:
                     logging.error(f"Socket error: {e}")
             print(f"Key found: {key}, sending value: {value}")
@@ -164,6 +165,7 @@ class Node:
             origin_ip, origin_port = origin.split(':')
             return_message = f"{self.ip}:{self.port} {seqno} {ttl} VAL {mode} {key} {value} {hop_count}\n"
             self.send_message(origin_ip, origin_port, return_message)
+            # Não feche o socket aqui
             return
 
         ttl -= 1
@@ -193,6 +195,22 @@ class Node:
             self.stats["random_walk_hops"] += hop_count
         elif mode == "BP":
             self.stats["depth_first_hops"] += hop_count
+
+        # Feche o socket apenas após todas as operações relacionadas a ele terem sido concluídas
+        # Verifique se o socket está em um estado válido antes de fechá-lo
+        if mode == "FL":
+            client_socket = self.connections.get((key, value))  # Use uma chave única para identificar o socket
+            if client_socket:
+                try:
+                    client_socket.sendall(response.encode())
+                    client_socket.close()
+                except socket.error as e:
+                    logging.error(f"Socket error: {e}")
+                except Exception as e:
+                    logging.error(f"Unexpected error: {e}")
+                finally:
+                    self.connections.pop((key, value), None)  # Remova o socket da lista de conexões após o fechamento
+
 
     def menu(self):
         commands = {
