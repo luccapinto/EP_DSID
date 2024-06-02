@@ -87,7 +87,10 @@ class Node:
             return
 
         if operation == "HELLO":
+            logging.debug(f"Received HELLO from {origin}")
             self.handle_hello(origin, client_socket)
+        elif operation == "HELLO_OK":
+            logging.debug(f"Received HELLO_OK from {origin}")
         elif operation == "SEARCH":
             mode, last_hop_port, key, hop_count = parts[4:]
             hop_count = int(hop_count)
@@ -96,16 +99,23 @@ class Node:
             mode, key, value, hop_count = parts[4:]
             self.handle_val(mode, key, value, int(hop_count))
 
+
     def handle_hello(self, origin, client_socket):
         with self.lock:
             if origin not in self.neighbors:
                 self.neighbors.append(origin)
-                print(f"Adding neighbor: {origin}")
+                logging.debug(f"Adding neighbor: {origin}")
                 response = f"{self.ip}:{self.port} 0 1 HELLO_OK\n"
                 try:
                     client_socket.sendall(response.encode())
+                    logging.debug(f"Sent HELLO_OK to {origin}")
                 except socket.error as e:
                     logging.error(f"Socket error: {e}")
+            else:
+                #logging.debug(f"Neighbor {origin} already known")
+                return
+
+
             
 
     def send_message(self, neighbor_ip, neighbor_port, message):
@@ -235,11 +245,17 @@ class Node:
                     continue
                 choice = int(choice)
                 if choice in commands:
-                    commands[choice]()
-                if choice == 9:
-                    break
+                    if choice in [2, 3, 4]:
+                        commands[choice]()
+                    else:
+                        commands[choice]()
+                        if choice == 9:
+                            break
+                else:
+                    print("Invalid command. Please enter a valid command number.")
             except ValueError:
                 print("Invalid input. Please enter a valid command number.")
+
 
     def list_neighbors(self):
         print("Neighbors:", self.neighbors)
@@ -261,10 +277,10 @@ class Node:
                         print("Invalid neighbor number. Please choose a valid number.")
                 except ValueError:
                     print("Invalid input. Please enter a valid number.")
-            
+
             neighbor_ip, neighbor_port = self.neighbors[number].split(':')
             message = f"{self.ip}:{self.port} 0 1 HELLO\n"
-            print(f"Sending HELLO to {neighbor_ip}:{neighbor_port}")
+            logging.debug(f"Sending HELLO to {neighbor_ip}:{neighbor_port}")
             try:
                 neighbor_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 neighbor_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
@@ -272,11 +288,15 @@ class Node:
                 neighbor_socket.connect((neighbor_ip, int(neighbor_port)))
                 neighbor_socket.sendall(message.encode())
                 neighbor_socket.close()
+                logging.debug(f"HELLO sent to {neighbor_ip}:{neighbor_port}")
             except socket.error as e:
                 print(f"Error sending HELLO to {neighbor_ip}:{neighbor_port}: {e}")
                 logging.error(f"Socket error: {e}")
             except Exception as e:
                 logging.error(f"Unexpected error: {e}")
+
+
+
 
 
     def search_flooding(self):
