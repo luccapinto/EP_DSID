@@ -279,15 +279,18 @@ class Node:
         }
 
         while True:
-            print("\nEscolha o comando")
-            print("\t[0] Listar vizinhos")
-            print("\t[1] HELLO")
-            print("\t[2] SEARCH (flooding)")
-            print("\t[3] SEARCH (random walk)")
-            print("\t[4] SEARCH (busca em profundidade)")
-            print("\t[5] Estatisticas")
-            print("\t[6] Alterar valor padrao de TTL")
-            print("\t[9] Sair")
+            print("""
+Escolha o comando:
+\t[0] Listar vizinhos
+\t[1] HELLO
+\t[2] SEARCH (flooding)
+\t[3] SEARCH (random walk)
+\t[4] SEARCH (busca em profundidade)
+\t[5] Estatisticas
+\t[6] Alterar valor padrao de TTL
+\t[9] Sair
+""")
+
 
             try:
                 choice = int(input())
