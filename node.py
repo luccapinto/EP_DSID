@@ -114,6 +114,8 @@ class Node:
         elif operation == "VAL":
             mode, key, value, hop_count = parts[4:]
             self.handle_val(mode, key, value, int(hop_count))
+        elif operation == "BYE":
+            self.handle_bye(origin)
 
     def handle_hello(self, origin: str, client_socket: socket.socket):
         with self.lock:
@@ -125,6 +127,12 @@ class Node:
                 self.send_response(client_socket, response)
             else:
                 print(f"Vizinho já está na tabela: {origin}")
+
+    def handle_bye(self, origin: str):
+        with self.lock:
+            if origin in self.neighbors:
+                self.neighbors.remove(origin)
+                print(f"Removendo vizinho da tabela: {origin}")
 
     def send_response(self, client_socket: Optional[socket.socket], response: str):
         if client_socket:
@@ -259,7 +267,6 @@ class Node:
         print(f"\tMedia de saltos ate encontrar destino por busca em profundidade: {depth_first_mean:.1f} (dp {depth_first_std:.2f})")
 
     def menu(self):
-        
         commands = {
             0: self.list_neighbors,
             1: self.send_hello,
@@ -284,8 +291,6 @@ class Node:
 
             try:
                 choice = int(input())
-                if choice == 9:
-                    break
                 if choice in commands:
                     commands[choice]()
                 else:
@@ -392,7 +397,6 @@ class Node:
             for neighbor_socket in self.connections.values():
                 neighbor_socket.close()
 
-        print("Exiting program...")
         self.running = False
         self.server_socket.close()
         sys.exit(0)
