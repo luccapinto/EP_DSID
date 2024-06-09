@@ -10,7 +10,6 @@ class Node:
         self.neighbors = []
         self.key_value_store = {}
         self.load_topology(neighbors_file)
-        self.load_key_values(key_value_file)
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.bind((self.ip, self.port))
         self.server_socket.listen(5)
@@ -21,22 +20,29 @@ class Node:
         self.lock = threading.Lock()
         self.connections = {}  # Dicionário para manter as conexões abertas
         self.visited_nodes = set()
-        print(f"Node running at {self.ip}:{self.port}")
+        print(f"Servidor criado: {self.ip}:{self.port}\n")
         self.stats = {
-            "flooding": 0,
-            "random_walk": 0,
-            "depth_first": 0,
-            "flooding_hops": 0,
-            "random_walk_hops": 0,
-            "depth_first_hops": 0
+            "Total de mensagens de flooding vistas": 0,
+            "Total de mensagens de random walk vistas": 0,
+            "Total de mensagens de busca em profundidade vistas": 0,
+            "Media de saltos ate encontrar destino por flooding": 0,
+            "Media de saltos ate encontrar destino por random walk": 0,
+            "Media de saltos ate encontrar destino por busca em profundidade": 0,
+            "Desvio Padrao de saltos ate encontrar destino por flooding": 0,
+            "Desvio Padrao de saltos ate encontrar destino por random walk": 0,
+            "Desvio Padrao de saltos ate encontrar destino por busca em profundidade": 0
         }
+
+
         self.initialize_neighbors()
+        print("\n")
+        self.load_key_values(key_value_file)
 
     def load_topology(self, neighbors_file):
         if neighbors_file:
             with open(neighbors_file, 'r') as f:
                 self.neighbors = [line.strip() for line in f.readlines()]
-            print(f"Loaded topology from {neighbors_file}: {self.neighbors}")
+            # print(f"Loaded topology from {neighbors_file}: {self.neighbors}")
 
     def load_key_values(self, key_value_file):
         if key_value_file:
@@ -44,7 +50,7 @@ class Node:
                 for line in f:
                     key, value = line.strip().split()
                     self.key_value_store[key] = value
-            print(f"Loaded key-value pairs from {key_value_file}: {self.key_value_store}")
+                    print(f"Adicionando par ({key}, {value}) na tabela local")
 
     def initialize_neighbors(self):
         for neighbor in self.neighbors:
@@ -58,15 +64,14 @@ class Node:
                 neighbor_socket.connect((neighbor_ip, int(neighbor_port)))
                 neighbor_socket.sendall(message.encode())
                 neighbor_socket.close()
-                print(f'Envio feito com sucesso: "{message.strip()}"')
+                print(f'\tEnvio feito com sucesso: "{message.strip()}"')
                 with self.lock:
                     if neighbor not in self.neighbors:
                         self.neighbors.append(neighbor)
             except socket.error as e:
-                print(f"Erro ao conectar: {e}")
+                print(f"\tErro ao conectar!")
 
     def start(self):
-        print(f"Node started at {self.ip}:{self.port}")
         threading.Thread(target=self.accept_connections).start()
         self.menu()
 
@@ -100,7 +105,7 @@ class Node:
         ttl = int(ttl)
 
         if ttl <= 0:
-            print("TTL expired, discarding message")
+            print("TTL igual a zero, descartando mensagem")
             return
 
         print(f'Mensagem recebida: "{message.strip()}"')
@@ -228,7 +233,7 @@ class Node:
         self.message_seen = set()
 
     def handle_val(self, mode, key, value, hop_count):
-        print(f"Value received - Key: {key}, Value: {value}")
+        print(f"\tValor encontrado!\n \t\tchave: {key}, valor: {value}")
         if mode == "FL":
             self.stats["flooding_hops"] += hop_count
         elif mode == "RW":
@@ -282,30 +287,34 @@ class Node:
                 if choice in commands:
                     commands[choice]()
                 else:
-                    print("Invalid command. Please enter a valid command number.")
+                    print("Comando invalido. Por favor insira um comando valido")
             except ValueError:
-                print("Invalid input. Please enter a valid command number.")
+                print("Entrada invalida. Escolha um numero valido")
 
     def list_neighbors(self):
-        print("Neighbors:", self.neighbors)
+        print(f"Há {len(self.neighbors)} vizinhos na tabela:")
+        for index, neighbor in enumerate(self.neighbors):
+            neighbor_ip, neighbor_port = neighbor.split(':')
+            print(f"\t[{index}] {neighbor_ip} {neighbor_port}")
+
 
     def send_hello(self):
-        print("Choose a neighbor:")
+        print("Escolha o vizinho:")
         i = 0
         with self.lock:
             for neighbor in self.neighbors:
                 neighbor_ip, neighbor_port = neighbor.split(':')
-                print(f"[{i}] {neighbor_ip}:{neighbor_port}")
+                print(f"\t[{i}] {neighbor_ip}:{neighbor_port}")
                 i += 1
             while True:
                 try:
-                    number = int(input("Choose neighbor number: "))
+                    number = int(input())
                     if 0 <= number < len(self.neighbors):
                         break
                     else:
-                        print("Invalid neighbor number. Please choose a valid number.")
+                        print("Vizinho invalido. Escolha um numero valido")
                 except ValueError:
-                    print("Invalid input. Please enter a valid number.")
+                    print("Entrada invalida. Escolha um numero valido")
 
             neighbor_ip, neighbor_port = self.neighbors[number].split(':')
             message = f"{self.ip}:{self.port} 0 1 HELLO\n"
@@ -317,7 +326,7 @@ class Node:
                 neighbor_socket.connect((neighbor_ip, int(neighbor_port)))
                 neighbor_socket.sendall(message.encode())
                 neighbor_socket.close()
-                print(f'Envio feito com sucesso: "{message.strip()}"')
+                print(f'\tEnvio feito com sucesso: "{message.strip()}"')
             except socket.error as e:
                 print(f"Error sending HELLO to {neighbor_ip}:{neighbor_port}: {e}")
                 print(f"Socket error: {e}")
@@ -325,7 +334,7 @@ class Node:
                 print(f"Unexpected error: {e}")
 
     def handle_search_flooding(self):
-        print("Choose a key:")
+        print("Digite a chave a ser buscada")
         key = input()
         origin = f"{self.ip}:{self.port}"
         seqno = random.randint(1, 1000)
@@ -335,7 +344,7 @@ class Node:
         self.handle_search(origin, seqno, ttl, "FL", last_hop_port, key, hop_count)
 
     def handle_search_random_walk(self):
-        print("Choose a key:")
+        print("Digite a chave a ser buscada")
         key = input()
         origin = f"{self.ip}:{self.port}"
         seqno = random.randint(1, 1000)
@@ -345,7 +354,7 @@ class Node:
         self.handle_search(origin, seqno, ttl, "RW", last_hop_port, key, hop_count)
 
     def handle_search_depth_first(self):
-        print("Choose a key:")
+        print("Digite a chave a ser buscada")
         key = input()
         origin = f"{self.ip}:{self.port}"
         seqno = random.randint(1, 1000)
@@ -356,20 +365,20 @@ class Node:
         self.handle_search(origin, seqno, ttl, "BP", last_hop_port, key, hop_count)
 
     def show_statistics(self):
-        print("Statistics:")
+        print("Estatisticas:")
         for stat, value in self.stats.items():
             print(f"{stat}: {value}")
 
     def change_ttl(self):
         try:
-            new_ttl = int(input("Enter new TTL value: "))
+            new_ttl = int(input("Digite novo valor de TTL"))
             self.ttl_default = new_ttl
-            print(f"TTL value updated to {new_ttl}")
         except ValueError:
-            print("Invalid TTL value.")
+            print("Valor de TTL invalido")
 
     def exit_program(self):
         with self.lock:
+            print("Saindo...")
             for neighbor in self.neighbors:
                 neighbor_ip, neighbor_port = neighbor.split(':')
                 message = f"{self.ip}:{self.port} 0 1 BYE\n"
@@ -378,7 +387,6 @@ class Node:
                 except socket.error as e:
                     print(f"Error sending BYE to {neighbor_ip}:{neighbor_port}: {e}")
                     print(f"Socket error: {e}")
-
             for neighbor_socket in self.connections.values():
                 neighbor_socket.close()
 
