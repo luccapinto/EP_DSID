@@ -157,7 +157,7 @@ class Node:
                 self.connections[neighbor_addr] = neighbor_socket
 
             neighbor_socket.sendall(message.encode())
-            print(f'Envio feito com sucesso: "{message.strip()}"')
+            print(f'\tEnvio feito com sucesso: "{message.strip()}"')
         except socket.error as e:
             print(f"Socket error while sending to {neighbor_addr}: {e}")
             self.connections.pop(neighbor_addr, None)
@@ -280,14 +280,14 @@ class Node:
 
         while True:
             print("\nEscolha o comando")
-            print("[0] Listar vizinhos")
-            print("[1] HELLO")
-            print("[2] SEARCH (flooding)")
-            print("[3] SEARCH (random walk)")
-            print("[4] SEARCH (busca em profundidade)")
-            print("[5] Estatisticas")
-            print("[6] Alterar valor padrao de TTL")
-            print("[9] Sair")
+            print("\t[0] Listar vizinhos")
+            print("\t[1] HELLO")
+            print("\t[2] SEARCH (flooding)")
+            print("\t[3] SEARCH (random walk)")
+            print("\t[4] SEARCH (busca em profundidade)")
+            print("\t[5] Estatisticas")
+            print("\t[6] Alterar valor padrao de TTL")
+            print("\t[9] Sair")
 
             try:
                 choice = int(input())
