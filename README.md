@@ -115,9 +115,5 @@ A comunicação é realizada através de sockets TCP. Utiliza-se operações blo
 O código está dividido em módulos para facilitar a manutenção e testes. As mensagens são codificadas em texto puro para facilitar a depuração.
 
 ## Autores
-- Nome do Autor 1
-- Nome do Autor 2
-
-## Licença
-Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para mais detalhes.
-
+- Lucca Pinto
+- Pedro Palazzi
