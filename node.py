@@ -4,6 +4,7 @@ import random
 import sys
 from typing import List, Dict, Optional, Tuple, Set
 import statistics
+import time
 
 class Node:
     def __init__(self, ip: str, port: int, neighbors_file: Optional[str] = None, key_value_file: Optional[str] = None):
@@ -213,6 +214,7 @@ class Node:
                 self.send_message(neighbor_ip, int(neighbor_port), new_message)
 
     def random_walk_search(self, origin: str, seqno: str, ttl: int, key: str, hop_count: int, last_hop_ip: str, last_hop_port: str):
+        self.visited_nodes.clear()  # Clear visited nodes at the start of the search
         candidate_neighbors = [n for n in self.neighbors if n.split(':')[1] != last_hop_port or n.split(':')[0] != last_hop_ip and n not in self.visited_nodes]
         print(f"recebi de {last_hop_ip}:{last_hop_port}")
         if not candidate_neighbors:
@@ -237,6 +239,7 @@ class Node:
         self.send_message(neighbor_ip, int(neighbor_port), new_message)
 
     def depth_first_search(self, origin: str, seqno: str, ttl: int, key: str, hop_count: int, last_hop_ip: str, last_hop_port: str):
+        self.visited_nodes.clear()  # Clear visited nodes at the start of the search
         print(f"recebi de {last_hop_ip}:{last_hop_port}")
         candidate_neighbors = [n for n in self.neighbors if  n.split(':')[1] != last_hop_port or n.split(':')[0] != last_hop_ip and n not in self.visited_nodes]
         if not candidate_neighbors:
@@ -250,10 +253,14 @@ class Node:
             # Separar o nó de origem dos candidatos
             origin_ip, origin_port = origin.split(':')
             non_origin_neighbors = [n for n in candidate_neighbors if n != f"{origin_ip}:{origin_port}" and n not in self.visited_nodes]
-        
+            print(f"candidate_neighbors: {candidate_neighbors}")
+            print(f"self.visited_nodes: {self.visited_nodes}")
+            print(f"non_origin_neighbors: {non_origin_neighbors}")
             if non_origin_neighbors:
+                print("manda pro aleatorio")
                 next_neighbor = random.choice(non_origin_neighbors)
             else:
+                print("devolve pra origem")
                 next_neighbor = f"{origin_ip}:{origin_port}"
         self.visited_nodes.append(next_neighbor)  # Append to list instead of assigning
         next_ip, next_port = next_neighbor.split(':')
@@ -367,6 +374,7 @@ Escolha o comando:
         last_hop_ip = self.ip
         last_hop_port = self.port
         hop_count = 0
+        self.visited_nodes.clear()
         self.handle_search(origin, str(seqno), ttl, "FL", last_hop_ip, last_hop_port, key, hop_count)
 
     def handle_search_random_walk(self):
@@ -382,6 +390,7 @@ Escolha o comando:
         last_hop_ip = self.ip
         last_hop_port = self.port
         hop_count = 0
+        self.visited_nodes.clear()
         self.handle_search(origin, str(seqno), ttl, "RW", last_hop_ip, last_hop_port, key, hop_count)
 
     def handle_search_depth_first(self):
@@ -434,7 +443,7 @@ Escolha o comando:
                     print(f"Error sending BYE to {neighbor_ip}:{neighbor_port}: {e}")
             for neighbor_socket in self.connections.values():
                 neighbor_socket.close()
-
+        time.sleep(3)
         self.running = False
         self.server_socket.close()
         sys.exit(0)
