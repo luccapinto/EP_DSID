@@ -216,11 +216,16 @@ class Node:
         candidate_neighbors = [n for n in self.neighbors if n.split(':')[1] != last_hop_port or n.split(':')[0] != last_hop_ip and n not in self.visited_nodes]
         print(f"recebi de {last_hop_ip}:{last_hop_port}")
         if not candidate_neighbors:
-            neighbor = f"{last_hop_ip}:{last_hop_port}"
+            if f"{self.ip}:{self.port}" == origin:
+                print(f"BP: Não foi possível localizar a chave {key}")
+                return
+            else:
+                print(f"BP: Não foi possível localizar a chave {key}")
+                neighbor = f"{last_hop_ip}:{last_hop_port}"
         else:
             # Separar o nó de origem dos candidatos
             origin_ip, origin_port = origin.split(':')
-            non_origin_neighbors = [n for n in candidate_neighbors if n != f"{origin_ip}:{origin_port}"]
+            non_origin_neighbors = [n for n in candidate_neighbors if n != f"{origin_ip}:{origin_port}" and n not in self.visited_nodes]
         
             if non_origin_neighbors:
                 neighbor = random.choice(non_origin_neighbors)
@@ -235,12 +240,16 @@ class Node:
         print(f"recebi de {last_hop_ip}:{last_hop_port}")
         candidate_neighbors = [n for n in self.neighbors if  n.split(':')[1] != last_hop_port or n.split(':')[0] != last_hop_ip and n not in self.visited_nodes]
         if not candidate_neighbors:
-            print(f"BP: Não foi possível localizar a chave {key}")
-            next_neighbor = f"{last_hop_ip}:{last_hop_port}"
+            if f"{self.ip}:{self.port}" == origin:
+                print(f"BP: Não foi possível localizar a chave {key}")
+                return
+            else:
+                print(f"BP: Não foi possível localizar a chave {key}")
+                next_neighbor = f"{last_hop_ip}:{last_hop_port}"
         else:
             # Separar o nó de origem dos candidatos
             origin_ip, origin_port = origin.split(':')
-            non_origin_neighbors = [n for n in candidate_neighbors if n != f"{origin_ip}:{origin_port}"]
+            non_origin_neighbors = [n for n in candidate_neighbors if n != f"{origin_ip}:{origin_port}" and n not in self.visited_nodes]
         
             if non_origin_neighbors:
                 next_neighbor = random.choice(non_origin_neighbors)
