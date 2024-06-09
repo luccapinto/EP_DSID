@@ -3,6 +3,7 @@ import threading
 import random
 import sys
 from typing import List, Dict, Optional, Tuple, Set
+import statistics
 
 class Node:
     def __init__(self, ip: str, port: int, neighbors_file: Optional[str] = None, key_value_file: Optional[str] = None):
@@ -21,26 +22,21 @@ class Node:
         self.lock = threading.Lock()
         self.connections: Dict[str, socket.socket] = {}
         self.visited_nodes: Set[str] = set()
+        self.seqno = 1  # Inicializa o número de sequência
         print(f"Servidor criado: {self.ip}:{self.port}\n")
         self.stats = self.initialize_stats()
 
         self.initialize_neighbors()
         self.load_file(key_value_file, self.key_value_store, is_key_value=True)
 
-    def initialize_stats(self) -> Dict[str, int]:
+    def initialize_stats(self) -> Dict[str, int or List[int]]:
         return {
             "Total de mensagens de flooding vistas": 0,
             "Total de mensagens de random walk vistas": 0,
             "Total de mensagens de busca em profundidade vistas": 0,
-            "Media de saltos ate encontrar destino por flooding": 0,
-            "Media de saltos ate encontrar destino por random walk": 0,
-            "Media de saltos ate encontrar destino por busca em profundidade": 0,
-            "Desvio Padrao de saltos ate encontrar destino por flooding": 0,
-            "Desvio Padrao de saltos ate encontrar destino por random walk": 0,
-            "Desvio Padrao de saltos ate encontrar destino por busca em profundidade": 0,
-            "flooding_hops": 0,
-            "random_walk_hops": 0,
-            "depth_first_hops": 0
+            "flooding_hops": [],
+            "random_walk_hops": [],
+            "depth_first_hops": []
         }
 
     def load_file(self, filename: Optional[str], storage: List[str] or Dict[str, str], is_key_value: bool = False):
@@ -56,11 +52,13 @@ class Node:
 
     def initialize_neighbors(self):
         for neighbor in self.neighbors:
+            print(f"Tentando adicionar vizinho {neighbor}")
             self.send_hello_message(neighbor)
 
     def send_hello_message(self, neighbor: str):
         neighbor_ip, neighbor_port = neighbor.split(':')
-        message = f"{self.ip}:{self.port} 0 1 HELLO\n"
+        message = f"{self.ip}:{self.port} {self.seqno} 1 HELLO\n"
+        self.seqno += 1
         try:
             self.send_message(neighbor_ip, int(neighbor_port), message)
         except socket.error:
@@ -122,17 +120,21 @@ class Node:
             if origin not in self.neighbors:
                 self.neighbors.append(origin)
                 print(f"Adicionando vizinho na tabela: {origin}")
-                response = f"{self.ip}:{self.port} 0 1 HELLO_OK\n"
+                response = f"{self.ip}:{self.port} {self.seqno} 1 HELLO_OK\n"
+                self.seqno += 1
                 self.send_response(client_socket, response)
             else:
                 print(f"Vizinho já está na tabela: {origin}")
 
-    def send_response(self, client_socket: socket.socket, response: str):
-        try:
-            client_socket.sendall(response.encode())
-            print(f"Sent {response.strip()}")
-        except socket.error as e:
-            print(f"Socket error: {e}")
+    def send_response(self, client_socket: Optional[socket.socket], response: str):
+        if client_socket:
+            try:
+                client_socket.sendall(response.encode())
+                print(f"Sent {response.strip()}")
+            except socket.error as e:
+                print(f"Socket error: {e}")
+        else:
+            print("Client socket is None, cannot send response")
 
     def send_message(self, neighbor_ip: str, neighbor_port: int, message: str):
         neighbor_addr = f"{neighbor_ip}:{neighbor_port}"
@@ -221,13 +223,43 @@ class Node:
     def handle_val(self, mode: str, key: str, value: str, hop_count: int):
         print(f"\tValor encontrado!\n \t\tchave: {key}, valor: {value}")
         if mode == "FL":
-            self.stats["flooding_hops"] += hop_count
+            self.stats["flooding_hops"].append(hop_count)
+            self.stats["Total de mensagens de flooding vistas"] += 1
         elif mode == "RW":
-            self.stats["random_walk_hops"] += hop_count
+            self.stats["random_walk_hops"].append(hop_count)
+            self.stats["Total de mensagens de random walk vistas"] += 1
         elif mode == "BP":
-            self.stats["depth_first_hops"] += hop_count
+            self.stats["depth_first_hops"].append(hop_count)
+            self.stats["Total de mensagens de busca em profundidade vistas"] += 1
+
+    def calculate_mean_std(self, data: List[int]) -> Tuple[float, float]:
+        if data:
+            mean = statistics.mean(data)
+            stddev = statistics.stdev(data) if len(data) > 1 else 0.0
+        else:
+            mean = stddev = 0.0
+        return mean, stddev
+
+    def show_statistics(self):
+        print("Estatisticas:")
+        stats_to_print = {
+            "Total de mensagens de flooding vistas": self.stats["Total de mensagens de flooding vistas"],
+            "Total de mensagens de random walk vistas": self.stats["Total de mensagens de random walk vistas"],
+            "Total de mensagens de busca em profundidade vistas": self.stats["Total de mensagens de busca em profundidade vistas"],
+        }
+        flooding_mean, flooding_std = self.calculate_mean_std(self.stats["flooding_hops"])
+        random_walk_mean, random_walk_std = self.calculate_mean_std(self.stats["random_walk_hops"])
+        depth_first_mean, depth_first_std = self.calculate_mean_std(self.stats["depth_first_hops"])
+
+        print(f"\tTotal de mensagens de flooding vistas: {stats_to_print['Total de mensagens de flooding vistas']}")
+        print(f"\tTotal de mensagens de random walk vistas: {stats_to_print['Total de mensagens de random walk vistas']}")
+        print(f"\tTotal de mensagens de busca em profundidade vistas: {stats_to_print['Total de mensagens de busca em profundidade vistas']}")
+        print(f"\tMedia de saltos ate encontrar destino por flooding: {flooding_mean:.1f} (dp {flooding_std:.2f})")
+        print(f"\tMedia de saltos ate encontrar destino por random walk: {random_walk_mean:.1f} (dp {random_walk_std:.2f})")
+        print(f"\tMedia de saltos ate encontrar destino por busca em profundidade: {depth_first_mean:.1f} (dp {depth_first_std:.2f})")
 
     def menu(self):
+        
         commands = {
             0: self.list_neighbors,
             1: self.send_hello,
@@ -269,15 +301,13 @@ class Node:
 
     def send_hello(self):
         print("Escolha o vizinho:")
-        for i, neighbor in enumerate(self.neighbors):
-            neighbor_ip, neighbor_port = neighbor.split(':')
-            print(f"\t[{i}] {neighbor_ip}:{neighbor_port}")
-
+        self.list_neighbors()
         try:
             number = int(input())
             if 0 <= number < len(self.neighbors):
                 neighbor_ip, neighbor_port = self.neighbors[number].split(':')
-                message = f"{self.ip}:{self.port} 0 1 HELLO\n"
+                message = f"{self.ip}:{self.port} {self.seqno} 1 HELLO\n"
+                self.seqno += 1  # Incrementa o número de sequência
                 self.send_message(neighbor_ip, int(neighbor_port), message)
             else:
                 print("Vizinho invalido. Escolha um numero valido")
@@ -286,36 +316,60 @@ class Node:
 
     def handle_search_flooding(self):
         key = input("Digite a chave a ser buscada\n")
+        if key in self.key_value_store:
+            print(f"Valor na tabela local!\n chave: {key}, valor: {self.key_value_store[key]}")
+            return
+
         origin = f"{self.ip}:{self.port}"
-        seqno = str(random.randint(1, 1000))
+        seqno = self.seqno
+        self.seqno += 1  # Incrementa o número de sequência
         ttl = self.ttl_default
         last_hop_port = self.port
         hop_count = 0
-        self.handle_search(origin, seqno, ttl, "FL", last_hop_port, key, hop_count)
+        self.handle_search(origin, str(seqno), ttl, "FL", last_hop_port, key, hop_count)
 
     def handle_search_random_walk(self):
         key = input("Digite a chave a ser buscada\n")
+        if key in self.key_value_store:
+            print(f"Valor na tabela local!\n chave: {key}, valor: {self.key_value_store[key]}")
+            return
+
         origin = f"{self.ip}:{self.port}"
-        seqno = str(random.randint(1, 1000))
+        seqno = self.seqno
+        self.seqno += 1  # Incrementa o número de sequência
         ttl = self.ttl_default
         last_hop_port = self.port
         hop_count = 0
-        self.handle_search(origin, seqno, ttl, "RW", last_hop_port, key, hop_count)
+        self.handle_search(origin, str(seqno), ttl, "RW", last_hop_port, key, hop_count)
 
     def handle_search_depth_first(self):
         key = input("Digite a chave a ser buscada\n")
+        if key in self.key_value_store:
+            print(f"Valor na tabela local!\n chave: {key}, valor: {self.key_value_store[key]}")
+            return
+
         origin = f"{self.ip}:{self.port}"
-        seqno = str(random.randint(1, 1000))
+        seqno = self.seqno
+        self.seqno += 1  # Incrementa o número de sequência
         ttl = self.ttl_default
         last_hop_port = self.port
         hop_count = 0
         self.visited_nodes.clear()
-        self.handle_search(origin, seqno, ttl, "BP", last_hop_port, key, hop_count)
+        self.handle_search(origin, str(seqno), ttl, "BP", last_hop_port, key, hop_count)
 
     def show_statistics(self):
         print("Estatisticas:")
-        for stat, value in self.stats.items():
-            print(f"{stat}: {value}")
+        print(f"\tTotal de mensagens de flooding vistas: {self.stats['Total de mensagens de flooding vistas']}")
+        print(f"\tTotal de mensagens de random walk vistas: {self.stats['Total de mensagens de random walk vistas']}")
+        print(f"\tTotal de mensagens de busca em profundidade vistas: {self.stats['Total de mensagens de busca em profundidade vistas']}")
+
+        flooding_mean, flooding_std = self.calculate_mean_std(self.stats["flooding_hops"])
+        random_walk_mean, random_walk_std = self.calculate_mean_std(self.stats["random_walk_hops"])
+        depth_first_mean, depth_first_std = self.calculate_mean_std(self.stats["depth_first_hops"])
+
+        print(f"\tMedia de saltos ate encontrar destino por flooding: {flooding_mean:.1f} (dp {flooding_std:.2f})")
+        print(f"\tMedia de saltos ate encontrar destino por random walk: {random_walk_mean:.1f} (dp {random_walk_std:.2f})")
+        print(f"\tMedia de saltos ate encontrar destino por busca em profundidade: {depth_first_mean:.1f} (dp {depth_first_std:.2f})")
 
     def change_ttl(self):
         try:
@@ -329,7 +383,8 @@ class Node:
             print("Saindo...")
             for neighbor in self.neighbors:
                 neighbor_ip, neighbor_port = neighbor.split(':')
-                message = f"{self.ip}:{self.port} 0 1 BYE\n"
+                message = f"{self.ip}:{self.port} {self.seqno} 1 BYE\n"
+                self.seqno += 1
                 try:
                     self.send_message(neighbor_ip, int(neighbor_port), message)
                 except socket.error as e:
