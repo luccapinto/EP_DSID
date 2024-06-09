@@ -1,61 +1,123 @@
-# Guia de Execução do Sistema Peer-to-Peer
 
-Este guia descreve como configurar e executar o sistema peer-to-peer para busca distribuída. Cada nó da rede pode armazenar pares chave-valor e participar de buscas usando métodos como inundação, caminhada aleatória e busca em profundidade.
+# Sistema de Busca Peer-to-Peer Não Estruturado
 
-## Pré-requisitos
+## Descrição
+Este projeto é parte da disciplina de Desenvolvimento de Sistemas de Informação Distribuídos (DSID) da Universidade de São Paulo. O objetivo é implementar um sistema de busca peer-to-peer não estruturado com métodos de busca como inundação (flooding), caminhada aleatória (random walk) e busca em profundidade.
 
-Antes de iniciar, certifique-se de que você tem o Python 3 instalado em sua máquina. O código foi testado em ambientes Unix-like (Linux/MacOS).
+## Instalação
+Para rodar este projeto, você precisará de Python 3.x instalado em sua máquina. 
 
-## Estrutura do Código
-
-O sistema é composto por dois arquivos principais:
-
-- `node.py`: Define a classe `Node`, responsável por gerenciar a lógica de cada nó na rede.
-- `main.py`: Script executável que inicia um nó e aceita comandos do usuário.
-
-Além disso, você precisará de arquivos de texto para definir os vizinhos e pares chave-valor para cada nó, se desejar iniciar a rede com dados pré-definidos.
-
-## Configuração e Execução
-
-### 1. Preparação dos Arquivos de Dados
-
-Crie arquivos de texto para definir os vizinhos e pares chave-valor de cada nó. Por exemplo:
-
-**neighbors.txt**
-127.0.0.1:5002
-127.0.0.1:5003
-
-**keys.txt**
-chave1 valor1
-chave2 valor2
-
-### 2. Execução dos Nós
-
-Para iniciar um nó, abra um terminal e use o seguinte comando:
-
+Clone o repositório:
 ```bash
-python main.py <porta> [arquivo_de_vizinhos] [arquivo_de_pares_chave_valor]
+git clone https://github.com/seu-usuario/seu-repositorio.git
+cd seu-repositorio
 ```
-## Exemplo
-python main.py 127.0.0.1:5001 neighbors1.txt key_value1.txt
 
-Repita isso em diferentes terminais para cada nó que deseja executar, alterando a porta e os arquivos conforme necessário.
-
-### 3. Interagindo com o Sistema
-
-Após iniciar o nó, você pode digitar comandos diretamente no terminal para interagir com a rede. Os comandos disponíveis incluem:
-
-- **list**: Lista todos os vizinhos conectados ao nó.
-- **search [method] [key]**: Inicia uma busca na rede. Métodos disponíveis:
-  - `flooding`
-  - `random_walk`
-  - `depth`
-- **exit**: Encerra a execução do nó.
-
-**Exemplos de Comandos:**
-
+Instale as dependências necessárias:
 ```bash
-Enter command (list, search [method] [key], exit): list
-Enter command (list, search [method] [key], exit): search flooding chave1
-Enter command (list, search [method] [key], exit): exit
+pip install -r requirements.txt
 ```
+
+## Uso
+Para iniciar um nó, use o seguinte comando:
+```bash
+python node.py <endereco>:<porta> [vizinhos.txt [lista_chave_valor.txt]]
+```
+Exemplo:
+```bash
+python node.py 127.0.0.1:5001 vizinhos.txt key_value1.txt
+```
+
+## Estrutura dos Arquivos
+- `gerar_arquivos.py`: Script para gerar arquivos de exemplo.
+- `node.py`: Implementação do nó do sistema peer-to-peer.
+- `start_nodes.ps1`: Script para iniciar múltiplos nós em PowerShell.
+- `key_value1.txt`, `key_value2.txt`, `key_value3.txt`: Arquivos de exemplo contendo pares chave-valor.
+- `1.txt`, `2.txt`, `3.txt`: Arquivos de exemplo contendo listas de vizinhos.
+
+## Comandos e Funcionalidades
+Após iniciar um nó, o seguinte menu será exibido:
+
+```plaintext
+Escolha o comando
+[0] Listar vizinhos
+[1] HELLO
+[2] SEARCH (flooding)
+[3] SEARCH (random walk)
+[4] SEARCH (busca em profundidade)
+[5] Estatisticas
+[6] Alterar valor padrao de TTL
+[9] Sair
+```
+
+### Descrição dos Comandos
+- **Listar Vizinhos**: Lista todos os vizinhos conectados.
+- **HELLO**: Envia uma mensagem HELLO para um vizinho.
+- **SEARCH (flooding)**: Realiza uma busca na rede usando o método de inundação.
+- **SEARCH (random walk)**: Realiza uma busca na rede usando o método de caminhada aleatória.
+- **SEARCH (busca em profundidade)**: Realiza uma busca na rede usando o método de busca em profundidade.
+- **Estatisticas**: Exibe estatísticas das buscas realizadas.
+- **Alterar valor padrao de TTL**: Altera o valor padrão do TTL.
+- **Sair**: Encerra o nó.
+
+## Exemplos de Uso
+### Listar Vizinhos
+```plaintext
+Escolha o comando
+[0] Listar vizinhos
+[1] HELLO
+...
+0
+
+Ha 3 vizinhos na tabela:
+[0] 127.0.0.1 5001
+[1] 127.0.0.1 5004
+[2] 127.0.0.1 5005
+```
+
+### Enviar HELLO
+```plaintext
+Escolha o comando
+[0] Listar vizinhos
+[1] HELLO
+...
+1
+
+Escolha o vizinho:
+Ha 3 vizinhos na tabela:
+[0] 127.0.0.1 5001
+[1] 127.0.0.1 5004
+[2] 127.0.0.1 5005
+
+0
+Encaminhando mensagem "127.0.0.1:5002 4 1 HELLO" para 127.0.0.1:5001
+Envio feito com sucesso: "127.0.0.1:5002 4 1 HELLO"
+```
+
+## Testes
+Os testes devem ser realizados em topologias simples e complexas. Sugere-se alguns testes:
+
+- Verificação das operações HELLO e BYE.
+- Lógica do TTL aplicada corretamente.
+- Busca por flooding encontrando chaves.
+- Busca por random walk em redes com e sem ciclos.
+- Busca em profundidade em redes com e sem ciclos.
+- Coleta e exibição de estatísticas.
+
+## Detalhes de Implementação
+### Paradigma de Programação
+Este projeto utiliza programação orientada a objetos para modularizar as funcionalidades dos nós da rede.
+
+### Comunicação entre Nós
+A comunicação é realizada através de sockets TCP. Utiliza-se operações bloqueantes para simplicidade.
+
+### Organização do Código
+O código está dividido em módulos para facilitar a manutenção e testes. As mensagens são codificadas em texto puro para facilitar a depuração.
+
+## Autores
+- Nome do Autor 1
+- Nome do Autor 2
+
+## Licença
+Este projeto está licenciado sob a licença MIT - veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
