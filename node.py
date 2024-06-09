@@ -21,7 +21,7 @@ class Node:
         self.message_seen: Set[Tuple[str, str]] = set()
         self.lock = threading.Lock()
         self.connections: Dict[str, socket.socket] = {}
-        self.visited_nodes: Set[str] = set()
+        self.visited_nodes: List[str] = []  # Initialize as a list
         self.seqno = 1  # Inicializa o número de sequência
         print(f"Servidor criado: {self.ip}:{self.port}\n")
         self.stats = self.initialize_stats()
@@ -108,9 +108,9 @@ class Node:
         elif operation == "HELLO_OK":
             print(f"Received HELLO_OK from {origin}")
         elif operation == "SEARCH":
-            mode, last_hop_port, key, hop_count = parts[4:]
+            mode, last_hop_ip, last_hop_port, key, hop_count = parts[4:]
             hop_count = int(hop_count)
-            self.handle_search(origin, seqno, ttl, mode, last_hop_port, key, hop_count, client_socket)
+            self.handle_search(origin, seqno, ttl, mode, last_hop_ip, last_hop_port, key, hop_count, client_socket)
         elif operation == "VAL":
             mode, key, value, hop_count = parts[4:]
             self.handle_val(mode, key, value, int(hop_count))
@@ -173,9 +173,10 @@ class Node:
             except:
                 pass
 
-    def handle_search(self, origin: str, seqno: str, ttl: int, mode: str, last_hop_port: str, key: str, hop_count: int, client_socket: Optional[socket.socket] = None):
-        message_id = (origin, seqno)
+    def handle_search(self, origin: str, seqno: str, ttl: int, mode: str, last_hop_ip: str, last_hop_port: str, key: str, hop_count: int, client_socket: Optional[socket.socket] = None):
+        message_id = (last_hop_ip, last_hop_port, origin, seqno)
         if message_id in self.message_seen:
+            print(F"MESSAGE_ID:{message_id}")
             print("Message already seen, discarding")
             return
         self.message_seen.add(message_id)
@@ -194,38 +195,60 @@ class Node:
 
         hop_count += 1
         if mode == "FL":
-            self.flood_search(origin, seqno, ttl, key, hop_count, last_hop_port)
+            self.flood_search(origin, seqno, ttl, key, hop_count, last_hop_ip, last_hop_port)
         elif mode == "RW":
-            self.random_walk_search(origin, seqno, ttl, key, hop_count, last_hop_port)
+            self.random_walk_search(origin, seqno, ttl, key, hop_count, last_hop_ip, last_hop_port)
         elif mode == "BP":
-            self.depth_first_search(origin, seqno, ttl, key, hop_count, last_hop_port)
+            self.depth_first_search(origin, seqno, ttl, key, hop_count, last_hop_ip, last_hop_port)
         else:
             print("Invalid search mode")
             return
 
-    def flood_search(self, origin: str, seqno: str, ttl: int, key: str, hop_count: int, last_hop_port: str):
+    def flood_search(self, origin: str, seqno: str, ttl: int, key: str, hop_count: int, last_hop_ip: str, last_hop_port: str):
+        print(f"recebi de {last_hop_ip}:{last_hop_port}")
         for neighbor in self.neighbors:
             neighbor_ip, neighbor_port = neighbor.split(':')
-            if neighbor_port != last_hop_port:
-                new_message = f"{origin} {seqno} {ttl} SEARCH FL {self.port} {key} {hop_count}\n"
+            if neighbor_port != last_hop_port or neighbor_ip != last_hop_ip:
+                new_message = f"{origin} {seqno} {ttl} SEARCH FL {self.ip} {self.port} {key} {hop_count}\n"
                 self.send_message(neighbor_ip, int(neighbor_port), new_message)
 
-    def random_walk_search(self, origin: str, seqno: str, ttl: int, key: str, hop_count: int, last_hop_port: str):
-        if self.neighbors:
-            neighbor = random.choice(self.neighbors)
-            neighbor_ip, neighbor_port = neighbor.split(':')
-            new_message = f"{origin} {seqno} {ttl} SEARCH RW {last_hop_port} {key} {hop_count}\n"
-            self.send_message(neighbor_ip, int(neighbor_port), new_message)
+    def random_walk_search(self, origin: str, seqno: str, ttl: int, key: str, hop_count: int, last_hop_ip: str, last_hop_port: str):
+        candidate_neighbors = [n for n in self.neighbors if n.split(':')[1] != last_hop_port or n.split(':')[0] != last_hop_ip and n not in self.visited_nodes]
+        print(f"recebi de {last_hop_ip}:{last_hop_port}")
+        if not candidate_neighbors:
+            neighbor = f"{last_hop_ip}:{last_hop_port}"
+        else:
+            # Separar o nó de origem dos candidatos
+            origin_ip, origin_port = origin.split(':')
+            non_origin_neighbors = [n for n in candidate_neighbors if n != f"{origin_ip}:{origin_port}"]
+        
+            if non_origin_neighbors:
+                neighbor = random.choice(non_origin_neighbors)
+            else:
+                neighbor = f"{origin_ip}:{origin_port}"
+        self.visited_nodes.append(neighbor)
+        neighbor_ip, neighbor_port = neighbor.split(':')
+        new_message = f"{origin} {seqno} {ttl} SEARCH RW {self.ip} {self.port} {key} {hop_count}\n"
+        self.send_message(neighbor_ip, int(neighbor_port), new_message)
 
-    def depth_first_search(self, origin: str, seqno: str, ttl: int, key: str, hop_count: int, last_hop_port: str):
-        candidate_neighbors = [n for n in self.neighbors if n.split(':')[1] != last_hop_port]
+    def depth_first_search(self, origin: str, seqno: str, ttl: int, key: str, hop_count: int, last_hop_ip: str, last_hop_port: str):
+        print(f"recebi de {last_hop_ip}:{last_hop_port}")
+        candidate_neighbors = [n for n in self.neighbors if  n.split(':')[1] != last_hop_port or n.split(':')[0] != last_hop_ip and n not in self.visited_nodes]
         if not candidate_neighbors:
             print(f"BP: Não foi possível localizar a chave {key}")
-            return
-
-        next_neighbor = random.choice(candidate_neighbors)
+            next_neighbor = f"{last_hop_ip}:{last_hop_port}"
+        else:
+            # Separar o nó de origem dos candidatos
+            origin_ip, origin_port = origin.split(':')
+            non_origin_neighbors = [n for n in candidate_neighbors if n != f"{origin_ip}:{origin_port}"]
+        
+            if non_origin_neighbors:
+                next_neighbor = random.choice(non_origin_neighbors)
+            else:
+                next_neighbor = f"{origin_ip}:{origin_port}"
+        self.visited_nodes.append(next_neighbor)  # Append to list instead of assigning
         next_ip, next_port = next_neighbor.split(':')
-        new_message = f"{origin} {seqno} {ttl} SEARCH BP {next_port} {key} {hop_count + 1}\n"
+        new_message = f"{origin} {seqno} {ttl} SEARCH BP {self.ip} {self.port} {key} {hop_count + 1}\n"
         self.send_message(next_ip, int(next_port), new_message)
 
     def handle_val(self, mode: str, key: str, value: str, hop_count: int):
@@ -332,9 +355,10 @@ Escolha o comando:
         seqno = self.seqno
         self.seqno += 1  # Incrementa o número de sequência
         ttl = self.ttl_default
+        last_hop_ip = self.ip
         last_hop_port = self.port
         hop_count = 0
-        self.handle_search(origin, str(seqno), ttl, "FL", last_hop_port, key, hop_count)
+        self.handle_search(origin, str(seqno), ttl, "FL", last_hop_ip, last_hop_port, key, hop_count)
 
     def handle_search_random_walk(self):
         key = input("Digite a chave a ser buscada\n")
@@ -346,9 +370,10 @@ Escolha o comando:
         seqno = self.seqno
         self.seqno += 1  # Incrementa o número de sequência
         ttl = self.ttl_default
+        last_hop_ip = self.ip
         last_hop_port = self.port
         hop_count = 0
-        self.handle_search(origin, str(seqno), ttl, "RW", last_hop_port, key, hop_count)
+        self.handle_search(origin, str(seqno), ttl, "RW", last_hop_ip, last_hop_port, key, hop_count)
 
     def handle_search_depth_first(self):
         key = input("Digite a chave a ser buscada\n")
@@ -360,10 +385,11 @@ Escolha o comando:
         seqno = self.seqno
         self.seqno += 1  # Incrementa o número de sequência
         ttl = self.ttl_default
+        last_hop_ip = self.ip
         last_hop_port = self.port
         hop_count = 0
         self.visited_nodes.clear()
-        self.handle_search(origin, str(seqno), ttl, "BP", last_hop_port, key, hop_count)
+        self.handle_search(origin, str(seqno), ttl, "BP", last_hop_ip, last_hop_port, key, hop_count)
 
     def show_statistics(self):
         print("Estatisticas:")
