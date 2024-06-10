@@ -11,8 +11,9 @@ class Node:
         self.ip = ip
         self.port = port
         self.neighbors: List[str] = []
+        self.neighbors_possiveis: List[str] = []
         self.key_value_store: Dict[str, str] = {}
-        self.load_file(neighbors_file, self.neighbors)
+        self.load_file(neighbors_file, self.neighbors_possiveis)
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.bind((self.ip, self.port))
         self.server_socket.listen(5)
@@ -52,7 +53,7 @@ class Node:
                         storage.append(line.strip())
 
     def initialize_neighbors(self):
-        for neighbor in self.neighbors:
+        for neighbor in self.neighbors_possiveis:
             print(f"Tentando adicionar vizinho {neighbor}")
             self.send_hello_message(neighbor)
 
