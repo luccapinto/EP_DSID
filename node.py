@@ -65,6 +65,14 @@ class Node:
             self.send_message(neighbor_ip, int(neighbor_port), message)
         except socket.error:
             print(f"\tErro ao conectar com {neighbor_ip}:{neighbor_port}")
+    def send_hello_ok_message(self, neighbor: str):
+        neighbor_ip, neighbor_port = neighbor.split(':')
+        message = f"{self.ip}:{self.port} {self.seqno} 1 HELLO_OK\n"
+        self.seqno += 1
+        try:
+            self.send_message(neighbor_ip, int(neighbor_port), message)
+        except socket.error:
+            print(f"\tErro ao conectar com {neighbor_ip}:{neighbor_port}")
 
     def start(self):
         threading.Thread(target=self.accept_connections).start()
@@ -109,6 +117,7 @@ class Node:
             self.handle_hello(origin, client_socket)
         elif operation == "HELLO_OK":
             print(f"Received HELLO_OK from {origin}")
+            self.handle_hello_ok(origin, client_socket)
         elif operation == "SEARCH":
             mode, last_hop_ip, last_hop_port, key, hop_count = parts[4:]
             hop_count = int(hop_count)
@@ -124,9 +133,15 @@ class Node:
             if origin not in self.neighbors:
                 self.neighbors.append(origin)
                 print(f"Adicionando vizinho na tabela: {origin}")
-                response = f"{self.ip}:{self.port} {self.seqno} 1 HELLO_OK\n"
                 self.seqno += 1
-                self.send_response(client_socket, response)
+                self.send_hello_ok_message(origin)
+            else:
+                print(f"Vizinho já está na tabela: {origin}")
+    def handle_hello_ok(self, origin: str, client_socket: socket.socket):
+        with self.lock:
+            if origin not in self.neighbors:
+                self.neighbors.append(origin)
+                print(f"Adicionando vizinho na tabela: {origin}")
             else:
                 print(f"Vizinho já está na tabela: {origin}")
 
@@ -267,7 +282,7 @@ class Node:
                 next_neighbor = f"{origin_ip}:{origin_port}"
         self.visited_nodes.append(next_neighbor)  # Append to list instead of assigning
         next_ip, next_port = next_neighbor.split(':')
-        new_message = f"{origin} {seqno} {ttl} SEARCH BP {self.ip} {self.port} {key} {hop_count + 1}\n"
+        new_message = f"{origin} {seqno} {ttl} SEARCH BP {self.ip} {self.port} {key} {hop_count}\n"
         self.send_message(next_ip, int(next_port), new_message)
 
     def handle_val(self, mode: str, key: str, value: str, hop_count: int):
