@@ -160,7 +160,7 @@ class Node:
             neighbor_socket.sendall(message.encode())
             print(f'\tEnvio feito com sucesso: "{message.strip()}"')
         except socket.error as e:
-            print(f"Socket error while sending to {neighbor_addr}: {e}")
+            print(f"Erro no envio da mensagem para {neighbor_addr}: {e}")
             self.connections.pop(neighbor_addr, None)
             try:
                 neighbor_socket.close()
