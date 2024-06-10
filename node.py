@@ -233,6 +233,7 @@ class Node:
                 neighbor = random.choice(non_origin_neighbors)
             else:
                 neighbor = f"{origin_ip}:{origin_port}"
+
         self.visited_nodes.append(neighbor)
         neighbor_ip, neighbor_port = neighbor.split(':')
         new_message = f"{origin} {seqno} {ttl} SEARCH RW {self.ip} {self.port} {key} {hop_count}\n"
@@ -242,6 +243,7 @@ class Node:
         self.visited_nodes.clear()  # Clear visited nodes at the start of the search
         print(f"recebi de {last_hop_ip}:{last_hop_port}")
         candidate_neighbors = [n for n in self.neighbors if  n.split(':')[1] != last_hop_port or n.split(':')[0] != last_hop_ip and n not in self.visited_nodes]
+    
         if not candidate_neighbors:
             if f"{self.ip}:{self.port}" == origin:
                 print(f"BP: Não foi possível localizar a chave {key}")
