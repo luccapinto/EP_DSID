@@ -1,2 +1,2 @@
-4 Bette_Davis
-3 Vivien_Leigh
+9 Bette_Davis
+10 Vivien_Leigh
