@@ -229,8 +229,7 @@ class Node:
                 new_message = f"{origin} {seqno} {ttl} SEARCH FL {self.ip} {self.port} {key} {hop_count}\n"
                 self.send_message(neighbor_ip, int(neighbor_port), new_message)
 
-    def random_walk_search(self, origin: str, seqno: str, ttl: int, key: str, hop_count: int, last_hop_ip: str, last_hop_port: str):
-        self.visited_nodes.clear()  # Clear visited nodes at the start of the search
+    def random_walk_search(self, origin: str, seqno: str, ttl: int, key: str, hop_count: int, last_hop_ip: str, last_hop_port: str): # Clear visited nodes at the start of the search
         candidate_neighbors = [n for n in self.neighbors if n.split(':')[1] != last_hop_port or n.split(':')[0] != last_hop_ip and n not in self.visited_nodes]
         print(f"recebi de {last_hop_ip}:{last_hop_port}")
         if not candidate_neighbors:
@@ -255,8 +254,7 @@ class Node:
         new_message = f"{origin} {seqno} {ttl} SEARCH RW {self.ip} {self.port} {key} {hop_count}\n"
         self.send_message(neighbor_ip, int(neighbor_port), new_message)
 
-    def depth_first_search(self, origin: str, seqno: str, ttl: int, key: str, hop_count: int, last_hop_ip: str, last_hop_port: str):
-        self.visited_nodes.clear()  # Clear visited nodes at the start of the search
+    def depth_first_search(self, origin: str, seqno: str, ttl: int, key: str, hop_count: int, last_hop_ip: str, last_hop_port: str):# Clear visited nodes at the start of the search
         print(f"recebi de {last_hop_ip}:{last_hop_port}")
         candidate_neighbors = [n for n in self.neighbors if  n.split(':')[1] != last_hop_port or n.split(':')[0] != last_hop_ip and n not in self.visited_nodes]
     
