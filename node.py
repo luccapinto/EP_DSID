@@ -25,6 +25,7 @@ class Node:
         self.lock = threading.Lock()
         self.connections: Dict[str, socket.socket] = {}
         self.visited_nodes: List[str] = []  # Initialize as a list
+        self.vizinhos_pai: List[str] = []  # Initialize as a list
         self.seqno = 1  # Inicializa o número de sequência
         print(f"Servidor criado: {self.ip}:{self.port}\n")
         self.stats = self.initialize_stats()
@@ -252,6 +253,12 @@ class Node:
         
             if non_origin_neighbors:
                 neighbor = random.choice(non_origin_neighbors)
+                non_pai_neighbors = [n for n in non_origin_neighbors if n not in self.vizinhos_pai and n not in self.visited_nodes]
+                if non_pai_neighbors:
+                    neighbor = random.choice(non_pai_neighbors)
+                else:
+                    non_pai_neighbors = [n for n in non_pai_neighbors if n not in self.visited_nodes]
+                    neighbor = random.choice(non_pai_neighbors)
             else:
                 neighbor = f"{origin_ip}:{origin_port}"
 
@@ -263,7 +270,7 @@ class Node:
     def depth_first_search(self, origin: str, seqno: str, ttl: int, key: str, hop_count: int, last_hop_ip: str, last_hop_port: str):# Clear visited nodes at the start of the search
         print(f"recebi de {last_hop_ip}:{last_hop_port}")
         candidate_neighbors = [n for n in self.neighbors if  n.split(':')[1] != last_hop_port or n.split(':')[0] != last_hop_ip and n not in self.visited_nodes]
-    
+        self.vizinhos_pai.append(f"{last_hop_ip}:{last_hop_port}")
         if not candidate_neighbors:
             if f"{self.ip}:{self.port}" == origin:
                 print(f"BP: Não foi possível localizar a chave {key}")
@@ -271,6 +278,7 @@ class Node:
             else:
                 print(f"BP: Não foi possível localizar a chave {key}")
                 next_neighbor = f"{last_hop_ip}:{last_hop_port}"
+            
         else:
             # Separar o nó de origem dos candidatos
             origin_ip, origin_port = origin.split(':')
@@ -280,7 +288,13 @@ class Node:
             print(f"non_origin_neighbors: {non_origin_neighbors}")
             if non_origin_neighbors:
                 print("manda pro aleatorio")
-                next_neighbor = random.choice(non_origin_neighbors)
+                non_pai_neighbors = [n for n in non_origin_neighbors if n not in self.vizinhos_pai and n not in self.visited_nodes]
+                if non_pai_neighbors:
+                    next_neighbor = random.choice(non_pai_neighbors)
+                else:
+                    non_pai_neighbors = [n for n in non_pai_neighbors if n not in self.visited_nodes]
+                    next_neighbor = random.choice(non_pai_neighbors)
+
             else:
                 print("devolve pra origem")
                 next_neighbor = f"{origin_ip}:{origin_port}"
