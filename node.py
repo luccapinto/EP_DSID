@@ -21,6 +21,7 @@ class Node:
         self.running = True
         self.ttl_default = 100
         self.message_seen: Set[Tuple[str, str]] = set()
+        self.search_received: Set[Tuple[str, str]] = set()
         self.lock = threading.Lock()
         self.connections: Dict[str, socket.socket] = {}
         self.visited_nodes: List[str] = []  # Initialize as a list
@@ -192,6 +193,11 @@ class Node:
 
     def handle_search(self, origin: str, seqno: str, ttl: int, mode: str, last_hop_ip: str, last_hop_port: str, key: str, hop_count: int, client_socket: Optional[socket.socket] = None):
         message_id = (last_hop_ip, last_hop_port, origin, seqno)
+        search_id = (origin, seqno)
+        if search_id not in self.search_received:
+            self.visited_nodes.clear()
+        else:
+            self.search_received.add(search_id)
         if message_id in self.message_seen:
             print(F"MESSAGE_ID:{message_id}")
             print("Message already seen, discarding")
