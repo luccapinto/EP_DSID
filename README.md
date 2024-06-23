@@ -1,7 +1,5 @@
 
 # Sistema de Busca Peer-to-Peer Não Estruturado
-
-## Descrição
 Este projeto é parte da disciplina de Desenvolvimento de Sistemas de Informação Distribuídos (DSID) da Universidade de São Paulo. O objetivo é implementar um sistema de busca peer-to-peer não estruturado com métodos de busca como inundação (flooding), caminhada aleatória (random walk) e busca em profundidade.
 
 ## Instalação
